@@ -36,7 +36,10 @@ No build tools, no server, no dependencies to install.
 
 ## 🌐 Live Demo
 
-The tool is live at: **[https://mohameden19961.github.io/mermaid-er-to-image/](https://mohameden19961.github.io/mermaid-er-to-image/)**
+| Platform | URL |
+|----------|-----|
+| **Vercel** | [https://mermaid-er-to-image.vercel.app](https://mermaid-er-to-image.vercel.app) |
+| GitHub Pages | [https://mohameden19961.github.io/mermaid-er-to-image/](https://mohameden19961.github.io/mermaid-er-to-image/) |
 
 ## 📝 License
 
