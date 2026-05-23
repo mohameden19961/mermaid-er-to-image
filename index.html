@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SQL/ER → Diagram Image</title>
+  <title>DB → ER Diagram</title>
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
 <body>
   <header>
-    <h1>🗄️ SQL → ER Diagram</h1>
-    <p>Import a SQL file or paste Mermaid code to generate a clean ER diagram.</p>
+    <h1>🗄️ DB → ER Diagram</h1>
+    <p>Import a JSON database schema, load from GitHub, or paste Mermaid code to generate a clean ER diagram.</p>
   </header>
 
   <main>
@@ -19,13 +19,17 @@
       <div class="panel-header">
         <label for="code-input">Source</label>
         <div class="actions">
-          <button id="import-sql-btn" class="btn btn-import" title="Import SQL file">📂 Import SQL</button>
-          <input type="file" id="sql-file-input" accept=".sql" hidden>
+          <button id="import-json-btn" class="btn btn-import" title="Import JSON file">📂 Import JSON</button>
+          <input type="file" id="json-file-input" accept=".json" hidden>
           <button id="load-example-btn" class="btn btn-sm" title="Load example">📋 Example</button>
           <button id="clear-btn" class="btn btn-sm" title="Clear">🗑️ Clear</button>
         </div>
       </div>
-      <textarea id="code-input" spellcheck="false" placeholder="Paste Mermaid code or import a SQL file..."></textarea>
+      <div class="github-row">
+        <input type="text" id="github-url-input" class="url-input" placeholder="https://raw.githubusercontent.com/user/repo/main/database.json" spellcheck="false">
+        <button id="load-github-btn" class="btn btn-primary">⬇️ Load from GitHub</button>
+      </div>
+      <textarea id="code-input" spellcheck="false" placeholder="Paste Mermaid code, JSON schema, or import a file..."></textarea>
     </div>
 
     <div class="preview-panel">
@@ -41,7 +45,7 @@
         <div id="empty-state">
           <div class="empty-icon">🗄️</div>
           <p>Your diagram will appear here</p>
-          <p class="hint">Import a SQL file or paste Mermaid code</p>
+          <p class="hint">Import a JSON file, load from GitHub, or paste Mermaid code</p>
         </div>
         <div id="error-state" class="hidden">
           <div class="error-icon">⚠️</div>
@@ -56,6 +60,7 @@
   </footer>
 
   <script src="sql-parser.js"></script>
+  <script src="json-parser.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

@@ -8,8 +8,10 @@
   const downloadSvgBtn = document.getElementById('download-svg-btn');
   const loadExampleBtn = document.getElementById('load-example-btn');
   const clearBtn = document.getElementById('clear-btn');
-  const importSqlBtn = document.getElementById('import-sql-btn');
-  const sqlFileInput = document.getElementById('sql-file-input');
+  const importJsonBtn = document.getElementById('import-json-btn');
+  const jsonFileInput = document.getElementById('json-file-input');
+  const githubUrlInput = document.getElementById('github-url-input');
+  const loadGithubBtn = document.getElementById('load-github-btn');
 
   const EXAMPLE_CODE = `erDiagram
     LANGUAGE {
@@ -137,6 +139,22 @@
       return;
     }
 
+    if (trimmed[0] === '{' || trimmed[0] === '[') {
+      try {
+        const json = JSON.parse(trimmed);
+        const mermaidCode = parseJsonSchemaToMermaid(json);
+        codeInput.value = mermaidCode;
+        return renderDiagram(mermaidCode);
+      } catch (e) {
+        if (e instanceof SyntaxError) {
+          // not JSON, fall through
+        } else {
+          showError('JSON Error: ' + e.message);
+          return;
+        }
+      }
+    }
+
     if (/CREATE\s+TABLE/i.test(trimmed)) {
       try {
         const mermaidCode = parseSqlToMermaid(trimmed);
@@ -236,22 +254,23 @@
     setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
-  function handleSqlFile(file) {
+  function handleJsonFile(file) {
     if (!file) return;
-    if (!file.name.endsWith('.sql')) {
-      showError('Please select a .sql file.');
+    if (!file.name.endsWith('.json')) {
+      showError('Please select a .json file.');
       return;
     }
 
     const reader = new FileReader();
     reader.onload = function (e) {
-      const sql = e.target.result;
+      const text = e.target.result;
       try {
-        const mermaidCode = parseSqlToMermaid(sql);
+        const json = JSON.parse(text);
+        const mermaidCode = parseJsonSchemaToMermaid(json);
         codeInput.value = mermaidCode;
         renderDiagram(mermaidCode);
       } catch (err) {
-        showError('SQL Parse Error: ' + err.message);
+        showError('JSON Error: ' + err.message);
       }
     };
     reader.onerror = function () {
@@ -260,15 +279,42 @@
     reader.readAsText(file);
   }
 
-  importSqlBtn.addEventListener('click', function () {
-    sqlFileInput.click();
+  importJsonBtn.addEventListener('click', function () {
+    jsonFileInput.click();
   });
 
-  sqlFileInput.addEventListener('change', function () {
+  jsonFileInput.addEventListener('change', function () {
     if (this.files && this.files[0]) {
-      handleSqlFile(this.files[0]);
+      handleJsonFile(this.files[0]);
     }
     this.value = '';
+  });
+
+  async function fetchFromGitHub() {
+    const url = githubUrlInput.value.trim();
+    if (!url) {
+      showError('Please enter a GitHub raw URL.');
+      return;
+    }
+    try {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+      }
+      const text = await response.text();
+      const json = JSON.parse(text);
+      const mermaidCode = parseJsonSchemaToMermaid(json);
+      codeInput.value = mermaidCode;
+      renderDiagram(mermaidCode);
+    } catch (err) {
+      showError('GitHub Load Error: ' + err.message);
+    }
+  }
+
+  loadGithubBtn.addEventListener('click', fetchFromGitHub);
+
+  githubUrlInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') fetchFromGitHub();
   });
 
   // Drag and drop support
@@ -303,7 +349,7 @@
     editorPanel.classList.remove('drag-over');
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      handleSqlFile(files[0]);
+      handleJsonFile(files[0]);
     }
   });
 
