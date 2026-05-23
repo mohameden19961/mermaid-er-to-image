@@ -1,6 +1,6 @@
 /**
  * SQL-to-ER Parser
- * Parses CREATE TABLE statements and generates Mermaid ER diagram code.
+ * Parses CREATE TABLE + ALTER TABLE statements and generates Mermaid ER diagram code.
  */
 
 function parseSqlToMermaid(sql) {
@@ -8,21 +8,41 @@ function parseSqlToMermaid(sql) {
   if (tables.length === 0) {
     throw new Error("No CREATE TABLE statements found in the SQL.");
   }
+  parseAlterTableStatements(sql, tables);
+  inferForeignKeys(tables);
   return generateMermaidER(tables);
 }
 
+// --- CREATE TABLE parsing ---
+
 function parseCreateTables(sql) {
   const tables = [];
-  const regex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`?\w+`?\.)?`?(\w+)`?\s*\(([\s\S]*?)\)\s*;?\s*(?:ENGINE\s*=\s*\w+)?/gi;
+  const tableRegex = /CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:`?\w+`?\.)?`?(\w+)`?\s*\(/gi;
   let match;
 
-  while ((match = regex.exec(sql)) !== null) {
+  while ((match = tableRegex.exec(sql)) !== null) {
     const tableName = match[1];
-    const body = match[2];
+    const startIdx = match.index + match[0].length;
+    const body = extractBalancedParens(sql, startIdx);
+    if (body === null) continue;
+
     tables.push(parseTableBody(tableName, body));
   }
 
   return tables;
+}
+
+function extractBalancedParens(sql, startIdx) {
+  let depth = 1;
+  let i = startIdx;
+  while (depth > 0 && i < sql.length) {
+    const ch = sql[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    i++;
+  }
+  if (depth !== 0) return null;
+  return sql.substring(startIdx, i - 1);
 }
 
 function parseTableBody(tableName, body) {
@@ -36,7 +56,6 @@ function parseTableBody(tableName, body) {
     const trimmed = line.trim();
     if (!trimmed) continue;
 
-    // Skip table-level constraints
     const priKeyMatch = trimmed.match(/PRIMARY\s+KEY\s*\(([^)]+)\)/i);
     if (priKeyMatch) {
       const keys = priKeyMatch[1].split(",").map(k => k.trim().replace(/`/g, ""));
@@ -46,16 +65,16 @@ function parseTableBody(tableName, body) {
 
     const forKeyMatch = trimmed.match(/FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:`?\w+`?\.)?`?(\w+)`?\s*\(([^)]+)\)/i);
     if (forKeyMatch) {
+      const col = forKeyMatch[1].replace(/`/g, "").trim();
       foreignKeys.push({
-        column: forKeyMatch[1].replace(/`/g, "").trim(),
+        column: col,
         refTable: forKeyMatch[2],
         refColumn: forKeyMatch[3].replace(/`/g, "").trim(),
       });
       continue;
     }
 
-    // Skip indexes, constraints, etc.
-    if (/^(INDEX|KEY|UNIQUE|CONSTRAINT|CHECK|FOREIGN|PRIMARY)\b/i.test(trimmed)) {
+    if (/^(INDEX|KEY|UNIQUE|CONSTRAINT|CHECK|FOREIGN|PRIMARY|FULLTEXT|SPATIAL)\b/i.test(trimmed)) {
       continue;
     }
 
@@ -65,14 +84,12 @@ function parseTableBody(tableName, body) {
     }
   }
 
-  // Mark primary keys
   for (const col of columns) {
     if (col.isPrimary || primaryKeys.includes(col.name)) {
       col.isPrimary = true;
     }
   }
 
-  // Mark foreign keys
   for (const fk of foreignKeys) {
     const col = columns.find(c => c.name === fk.column);
     if (col) {
@@ -91,6 +108,10 @@ function splitColumns(body) {
   let current = "";
 
   for (const ch of body) {
+    if (ch === "'" || ch === '"') {
+      current += ch;
+      continue;
+    }
     if (ch === "(") depth++;
     else if (ch === ")") depth--;
     if (ch === "," && depth === 0) {
@@ -105,78 +126,133 @@ function splitColumns(body) {
 }
 
 function parseColumnDef(str) {
-  // Remove leading/trailing whitespace
-  let s = str.trim();
-
-  // Try to match: [name] [type] [constraints...]
-  const match = s.match(/^`?(\w+)`?\s+(\w+(?:\s*\([^)]*\))?)\s*(.*)/);
+  const match = str.match(/^`?(\w+)`?\s+(\w+(?:\s*\([^)]*\))?)\s*(.*)/);
   if (!match) return null;
 
   const name = match[1];
   let rawType = match[2];
   const constraints = match[3].toUpperCase();
 
-  // Normalize type
   rawType = rawType.replace(/\s*\(.*\)/, "").toUpperCase();
 
-  let sqlType = rawType;
   const TYPE_MAP = {
-    "INT": "int",
-    "INTEGER": "int",
-    "BIGINT": "bigint",
-    "SMALLINT": "int",
-    "TINYINT": "int",
-    "VARCHAR": "string",
-    "CHAR": "string",
-    "TEXT": "string",
-    "LONGTEXT": "string",
-    "MEDIUMTEXT": "string",
-    "CLOB": "string",
-    "BOOLEAN": "boolean",
-    "BOOL": "boolean",
-    "BIT": "boolean",
-    "DATE": "string",
-    "DATETIME": "string",
-    "TIMESTAMP": "string",
-    "TIME": "string",
-    "YEAR": "int",
-    "FLOAT": "float",
-    "DOUBLE": "float",
-    "DECIMAL": "float",
-    "NUMERIC": "float",
-    "REAL": "float",
-    "BLOB": "string",
-    "LONGBLOB": "string",
-    "MEDIUMBLOB": "string",
-    "UUID": "string",
-    "ENUM": "string",
-    "JSON": "string",
-    "SERIAL": "bigint",
+    INT: "int", INTEGER: "int", BIGINT: "bigint", SMALLINT: "int",
+    TINYINT: "int", MEDIUMINT: "int",
+    VARCHAR: "string", CHAR: "string", TEXT: "string", LONGTEXT: "string",
+    MEDIUMTEXT: "string", TINYTEXT: "string", CLOB: "string",
+    BOOLEAN: "boolean", BOOL: "boolean", BIT: "boolean",
+    DATE: "string", DATETIME: "string", TIMESTAMP: "string",
+    TIME: "string", YEAR: "int",
+    FLOAT: "float", DOUBLE: "float", DECIMAL: "float",
+    NUMERIC: "float", REAL: "float",
+    BLOB: "string", LONGBLOB: "string", MEDIUMBLOB: "string", TINYBLOB: "string",
+    UUID: "string", ENUM: "string", SET: "string", JSON: "string", SERIAL: "bigint",
   };
 
-  const mermaidType = TYPE_MAP[sqlType] || "string";
-
-  const isPrimary = /\bPRIMARY\s+KEY\b/.test(constraints) || /\bAUTO_INCREMENT\b/i.test(s);
-  const isForeignKey = /\bFOREIGN\s+KEY\b/.test(constraints);
-  const isNotNull = /\bNOT\s+NULL\b/.test(constraints);
+  const mermaidType = TYPE_MAP[rawType] || "string";
+  const isPrimary = /\bPRIMARY\s+KEY\b/.test(constraints) || /\bAUTO_INCREMENT\b/i.test(str);
   const isUnique = /\bUNIQUE\b/.test(constraints);
+  const s = str.trim();
 
   return {
-    name,
-    type: mermaidType,
-    sqlType: rawType,
-    isPrimary,
-    isForeignKey,
-    isNotNull,
-    isUnique,
+    name, type: mermaidType, sqlType: rawType,
+    isPrimary, isForeignKey: false, isNotNull: /\bNOT\s+NULL\b/.test(constraints),
+    isUnique, refTable: null, refColumn: null,
   };
 }
+
+// --- ALTER TABLE parsing ---
+
+function parseAlterTableStatements(sql, tables) {
+  const tableMap = {};
+  for (const t of tables) {
+    tableMap[t.name.toUpperCase()] = t;
+  }
+
+  // ALTER TABLE ... ADD PRIMARY KEY (...)
+  const pkRegex = /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:IF\s+EXISTS\s+)?`?(\w+)`?\s+ADD\s+(?:CONSTRAINT\s+\S+\s+)?PRIMARY\s+KEY\s*\(([^)]+)\)/gi;
+  let pkMatch;
+  while ((pkMatch = pkRegex.exec(sql)) !== null) {
+    const tbl = tableMap[pkMatch[1].toUpperCase()];
+    if (!tbl) continue;
+    const keys = pkMatch[2].split(",").map(k => k.trim().replace(/`/g, ""));
+    for (const col of tbl.columns) {
+      if (keys.includes(col.name)) col.isPrimary = true;
+    }
+  }
+
+  // ALTER TABLE ... ADD CONSTRAINT ... FOREIGN KEY ... REFERENCES ...
+  const fkRegex = /ALTER\s+TABLE\s+(?:ONLY\s+)?(?:IF\s+EXISTS\s+)?`?(\w+)`?\s+ADD\s+(?:CONSTRAINT\s+\S+\s+)?FOREIGN\s+KEY\s*\(([^)]+)\)\s*REFERENCES\s+(?:`?\w+`?\.)?`?(\w+)`?\s*\(([^)]+)\)/gi;
+  let fkMatch;
+  while ((fkMatch = fkRegex.exec(sql)) !== null) {
+    const tbl = tableMap[fkMatch[1].toUpperCase()];
+    if (!tbl) continue;
+    const colName = fkMatch[2].replace(/`/g, "").trim();
+    const refTable = fkMatch[3];
+    const refCol = fkMatch[4].replace(/`/g, "").trim();
+    const col = tbl.columns.find(c => c.name === colName);
+    if (col) {
+      col.isForeignKey = true;
+      col.refTable = refTable;
+      col.refColumn = refCol;
+    }
+  }
+}
+
+// --- Heuristic FK detection by naming convention ---
+
+function inferForeignKeys(tables) {
+  const tableNames = tables.map(t => t.name.toUpperCase());
+  const singularMap = {};
+  for (const t of tables) {
+    singularMap[t.name.toUpperCase()] = t.name;
+  }
+
+  for (const table of tables) {
+    for (const col of table.columns) {
+      if (col.isForeignKey) continue;
+
+      const name = col.name.toUpperCase();
+
+      // pattern: xxx_id
+      const idMatch = name.match(/^(.+)_ID$/);
+      if (idMatch) {
+        const ref = idMatch[1];
+        for (const [key, val] of Object.entries(singularMap)) {
+          if (key === ref || key.replace(/s$/, '') === ref || key === ref.replace(/s$/, '')) {
+            col.isForeignKey = true;
+            col.refTable = val;
+            col.refColumn = "id";
+            break;
+          }
+        }
+        if (col.isForeignKey) continue;
+      }
+
+      // pattern: xxx_code
+      const codeMatch = name.match(/^(.+)_CODE$/);
+      if (codeMatch) {
+        const ref = codeMatch[1];
+        for (const [key, val] of Object.entries(singularMap)) {
+          if (key === ref || key.replace(/s$/, '') === ref || key === ref.replace(/s$/, '')) {
+            col.isForeignKey = true;
+            col.refTable = val;
+            col.refColumn = "code";
+            break;
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- Mermaid generation ---
 
 function generateMermaidER(tables) {
   let mermaid = "erDiagram\n";
 
-  // Entity definitions
   for (const table of tables) {
+    if (table.columns.length === 0) continue;
     mermaid += `    ${table.name} {\n`;
     for (const col of table.columns) {
       let suffix = "";
@@ -184,36 +260,29 @@ function generateMermaidER(tables) {
       else if (col.isPrimary) suffix = " PK";
       else if (col.isForeignKey) suffix = " FK";
       else if (col.isUnique) suffix = " UK";
-
-      mermaid += `        ${col.type} ${col.name}${suffix}\n`;
+      const type = col.type || "string";
+      mermaid += `        ${type} ${col.name}${suffix}\n`;
     }
-    mermaid += `    }\n`;
+    mermaid += "    }\n";
   }
 
   mermaid += "\n";
 
-  // Relationships
+  const used = new Set();
   for (const table of tables) {
     for (const col of table.columns) {
       if (col.isForeignKey && col.refTable) {
-        const relTable = tables.find(t => t.name.toUpperCase() === col.refTable.toUpperCase());
-        const refName = relTable ? relTable.name : col.refTable;
-        mermaid += `    ${refName} ||--o{ ${table.name} : "has"\n`;
+        const key = `${table.name}->${col.refTable}`;
+        if (used.has(key)) continue;
+        used.add(key);
+        mermaid += `    ${col.refTable} ||--o{ ${table.name} : "has"\n`;
       }
-    }
-
-    // Detect relationships from foreign keys defined at table level
-    for (const fk of table.foreignKeys) {
-      const relTable = tables.find(t => t.name.toUpperCase() === fk.refTable.toUpperCase());
-      const refName = relTable ? relTable.name : fk.refTable;
-      mermaid += `    ${refName} ||--o{ ${table.name} : "has"\n`;
     }
   }
 
   return mermaid;
 }
 
-// Export for both browser and Node.js
 if (typeof module !== "undefined" && module.exports) {
   module.exports = { parseSqlToMermaid, parseCreateTables };
 }
