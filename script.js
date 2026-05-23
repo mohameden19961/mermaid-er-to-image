@@ -137,6 +137,17 @@
       return;
     }
 
+    if (/CREATE\s+TABLE/i.test(trimmed)) {
+      try {
+        const mermaidCode = parseSqlToMermaid(trimmed);
+        codeInput.value = mermaidCode;
+        return renderDiagram(mermaidCode);
+      } catch (e) {
+        showError('SQL Error: ' + e.message);
+        return;
+      }
+    }
+
     try {
       const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), trimmed);
       emptyState.classList.add('hidden');
