@@ -3,32 +3,34 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mermaid ER → Image</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <title>SQL/ER → Diagram Image</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
 </head>
 <body>
   <header>
-    <h1>📊 Mermaid ER → Image</h1>
-    <p>Paste your Mermaid ER diagram code, see it live, export as PNG.</p>
+    <h1>🗄️ SQL → ER Diagram</h1>
+    <p>Import a SQL file or paste Mermaid code to generate a clean ER diagram.</p>
   </header>
 
   <main>
     <div class="editor-panel">
       <div class="panel-header">
-        <label for="code-input">Mermaid Code</label>
+        <label for="code-input">Source</label>
         <div class="actions">
+          <button id="import-sql-btn" class="btn btn-import" title="Import SQL file">📂 Import SQL</button>
+          <input type="file" id="sql-file-input" accept=".sql" hidden>
           <button id="load-example-btn" class="btn btn-sm" title="Load example">📋 Example</button>
           <button id="clear-btn" class="btn btn-sm" title="Clear">🗑️ Clear</button>
         </div>
       </div>
-      <textarea id="code-input" spellcheck="false" placeholder="Paste your mermaid code here..."></textarea>
+      <textarea id="code-input" spellcheck="false" placeholder="Paste Mermaid code or import a SQL file..."></textarea>
     </div>
 
     <div class="preview-panel">
       <div class="panel-header">
-        <span>Preview</span>
+        <span>ER Diagram</span>
         <div class="actions">
           <button id="download-png-btn" class="btn btn-primary" disabled>⬇️ Download PNG</button>
           <button id="download-svg-btn" class="btn btn-sm" disabled>⬇️ SVG</button>
@@ -37,9 +39,9 @@
       <div class="preview-area">
         <div id="mermaid-container" class="mermaid"></div>
         <div id="empty-state">
-          <div class="empty-icon">📊</div>
+          <div class="empty-icon">🗄️</div>
           <p>Your diagram will appear here</p>
-          <p class="hint">Type or paste Mermaid ER diagram code</p>
+          <p class="hint">Import a SQL file or paste Mermaid code</p>
         </div>
         <div id="error-state" class="hidden">
           <div class="error-icon">⚠️</div>
@@ -50,9 +52,10 @@
   </main>
 
   <footer>
-    <p>Built with <a href="https://mermaid.js.org/" target="_blank">Mermaid.js</a> &middot; Open source</p>
+    <p>Built with <a href="https://mermaid.js.org/" target="_blank">Mermaid.js</a> &middot; <a href="https://github.com/mohameden19961/mermaid-er-to-image">GitHub</a></p>
   </footer>
 
+  <script src="sql-parser.js"></script>
   <script src="script.js"></script>
 </body>
 </html>

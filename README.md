@@ -1,38 +1,24 @@
-# 📊 Mermaid ER → Image
+# 🗄️ SQL/ER → ER Diagram
 
-A simple web tool to convert Mermaid ER diagram code into high-quality PNG/SVG images. No backend required — everything runs in your browser.
+Import a SQL file or paste Mermaid code to generate a clean Entity-Relationship diagram. No backend required.
 
 ## ✨ Features
 
-- **Live preview** — See your diagram update as you type
-- **PNG export** — Download a high-resolution (3x) PNG image
-- **SVG export** — Download vector SVG for perfect scaling
-- **Dark theme** — Easy on the eyes
-- **Fully offline-capable** — Once loaded, works without internet
+- **Import SQL** — Click "Import SQL" and select a `.sql` file (phpMyAdmin export, mysqldump, etc.)
+- **Drag & drop** — Drag a `.sql` file directly onto the editor
+- **Mermaid code** — Paste `erDiagram` code directly if you prefer
+- **Live preview** — See your diagram update instantly
+- **PNG export** — High-resolution (3x) PNG download
+- **SVG export** — Vector SVG for perfect scaling
 
 ## 🚀 Usage
 
-1. Open `index.html` in your browser (or [host on GitHub Pages](#-deploy-to-github-pages))
-2. Paste your Mermaid `erDiagram` code in the left panel
-3. See the live preview on the right
-4. Click **Download PNG** or **Download SVG** to save
+1. Open [https://mermaid-er-to-image.vercel.app](https://mermaid-er-to-image.vercel.app)
+2. Click **📂 Import SQL** and select your `.sql` file
+3. The ER diagram renders instantly
+4. Click **Download PNG** or **Download SVG**
 
-### Example
-
-Click the **📋 Example** button to load a sample ER diagram from a library management system.
-
-## 🛠️ Local Development
-
-```bash
-# Clone the repo
-git clone https://github.com/mohameden19961/mermaid-er-to-image.git
-cd mermaid-er-to-image
-
-# Just open the file in your browser
-open index.html
-```
-
-No build tools, no server, no dependencies to install.
+Or paste Mermaid code directly in the text area.
 
 ## 🌐 Live Demo
 

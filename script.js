@@ -8,6 +8,8 @@
   const downloadSvgBtn = document.getElementById('download-svg-btn');
   const loadExampleBtn = document.getElementById('load-example-btn');
   const clearBtn = document.getElementById('clear-btn');
+  const importSqlBtn = document.getElementById('import-sql-btn');
+  const sqlFileInput = document.getElementById('sql-file-input');
 
   const EXAMPLE_CODE = `erDiagram
     LANGUAGE {
@@ -95,10 +97,10 @@
   mermaid.initialize({
     theme: 'default',
     themeVariables: {
-      primaryColor: '#e0f2fe',
-      primaryTextColor: '#0f172a',
-      primaryBorderColor: '#0284c7',
-      lineColor: '#475569',
+      primaryColor: '#eff6ff',
+      primaryTextColor: '#1e3a5f',
+      primaryBorderColor: '#3b82f6',
+      lineColor: '#64748b',
       secondaryColor: '#f8fafc',
       tertiaryColor: '#ffffff',
       fontFamily: 'system-ui, sans-serif',
@@ -152,7 +154,7 @@
   function downloadAsSvg() {
     if (!lastSvg) return;
     const blob = new Blob([lastSvg], { type: 'image/svg+xml;charset=utf-8' });
-    downloadBlob(blob, 'diagram.svg');
+    downloadBlob(blob, 'er-diagram.svg');
   }
 
   function downloadAsPng() {
@@ -161,56 +163,13 @@
     const container = mermaidContainer.querySelector('svg');
     if (!container) return;
 
-    const svgData = lastSvg;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    const tempContainer = document.createElement('div');
-    tempContainer.innerHTML = svgData;
-    const svgEl = tempContainer.querySelector('svg');
-    const origWidth = parseFloat(svgEl.getAttribute('width'));
-    const origHeight = parseFloat(svgEl.getAttribute('height'));
-    const scale = 3;
-    const w = Math.round(origWidth * scale);
-    const h = Math.round(origHeight * scale);
-
-    canvas.width = w;
-    canvas.height = h;
-
-    const img = new Image();
-    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-
-    img.onload = function () {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(url);
-
-      canvas.toBlob(function (pngBlob) {
-        if (pngBlob) {
-          downloadBlob(pngBlob, 'diagram.png');
-        }
-      }, 'image/png');
-    };
-
-    img.onerror = function () {
-      fallbackPngDownload();
-    };
-
-    img.src = url;
-  }
-
-  function fallbackPngDownload() {
-    const svgEl = mermaidContainer.querySelector('svg');
-    if (!svgEl) return;
     const serializer = new XMLSerializer();
-    const svgString = serializer.serializeToString(svgEl);
+    const svgString = serializer.serializeToString(container);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    const origWidth = parseFloat(svgEl.getAttribute('width')) || 800;
-    const origHeight = parseFloat(svgEl.getAttribute('height')) || 600;
+    const origWidth = parseFloat(container.getAttribute('width')) || 800;
+    const origHeight = parseFloat(container.getAttribute('height')) || 600;
     const scale = 3;
     canvas.width = Math.round(origWidth * scale);
     canvas.height = Math.round(origHeight * scale);
@@ -225,8 +184,13 @@
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       URL.revokeObjectURL(url);
       canvas.toBlob(function (pngBlob) {
-        if (pngBlob) downloadBlob(pngBlob, 'diagram.png');
+        if (pngBlob) downloadBlob(pngBlob, 'er-diagram.png');
       }, 'image/png');
+    };
+
+    img.onerror = function () {
+      URL.revokeObjectURL(url);
+      showError('Failed to render PNG. Try downloading SVG instead.');
     };
 
     img.src = url;
@@ -241,6 +205,77 @@
     document.body.removeChild(link);
     URL.revokeObjectURL(blob);
   }
+
+  function handleSqlFile(file) {
+    if (!file) return;
+    if (!file.name.endsWith('.sql')) {
+      showError('Please select a .sql file.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+      const sql = e.target.result;
+      try {
+        const mermaidCode = parseSqlToMermaid(sql);
+        codeInput.value = mermaidCode;
+        renderDiagram(mermaidCode);
+      } catch (err) {
+        showError('SQL Parse Error: ' + err.message);
+      }
+    };
+    reader.onerror = function () {
+      showError('Failed to read file.');
+    };
+    reader.readAsText(file);
+  }
+
+  importSqlBtn.addEventListener('click', function () {
+    sqlFileInput.click();
+  });
+
+  sqlFileInput.addEventListener('change', function () {
+    if (this.files && this.files[0]) {
+      handleSqlFile(this.files[0]);
+    }
+    this.value = '';
+  });
+
+  // Drag and drop support
+  const editorPanel = document.querySelector('.editor-panel');
+  let dragCounter = 0;
+
+  editorPanel.addEventListener('dragenter', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter++;
+    editorPanel.classList.add('drag-over');
+  });
+
+  editorPanel.addEventListener('dragleave', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter--;
+    if (dragCounter === 0) {
+      editorPanel.classList.remove('drag-over');
+    }
+  });
+
+  editorPanel.addEventListener('dragover', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  });
+
+  editorPanel.addEventListener('drop', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    editorPanel.classList.remove('drag-over');
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      handleSqlFile(files[0]);
+    }
+  });
 
   let renderTimeout = null;
   function scheduleRender() {
