@@ -170,57 +170,70 @@
 
   function downloadAsSvg() {
     if (!lastSvg) return;
-    const blob = new Blob([lastSvg], { type: 'image/svg+xml;charset=utf-8' });
+    const svg = ensureSvgNamespace(lastSvg);
+    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     downloadBlob(blob, 'er-diagram.svg');
+  }
+
+  function ensureSvgNamespace(svg) {
+    if (svg.includes('xmlns="http://www.w3.org/2000/svg"')) return svg;
+    return svg.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
   }
 
   function downloadAsPng() {
     if (!lastSvg) return;
 
-    const container = mermaidContainer.querySelector('svg');
-    if (!container) return;
-
-    const serializer = new XMLSerializer();
-    const svgString = serializer.serializeToString(container);
+    const svgData = ensureSvgNamespace(lastSvg);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
 
-    const origWidth = parseFloat(container.getAttribute('width')) || 800;
-    const origHeight = parseFloat(container.getAttribute('height')) || 600;
-    const scale = 3;
-    canvas.width = Math.round(origWidth * scale);
-    canvas.height = Math.round(origHeight * scale);
+    const origWidth = lastSvg.match(/width="([^"]+)"/);
+    const origHeight = lastSvg.match(/height="([^"]+)"/);
+    const w = origWidth ? Math.round(parseFloat(origWidth[1]) * 3) : 2400;
+    const h = origHeight ? Math.round(parseFloat(origHeight[1]) * 3) : 1800;
+    canvas.width = w;
+    canvas.height = h;
 
     const img = new Image();
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
 
     img.onload = function () {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      canvas.toBlob(function (pngBlob) {
-        if (pngBlob) downloadBlob(pngBlob, 'er-diagram.png');
-      }, 'image/png');
+      try {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        URL.revokeObjectURL(url);
+        canvas.toBlob(function (pngBlob) {
+          if (pngBlob) {
+            downloadBlob(pngBlob, 'er-diagram.png');
+          } else {
+            downloadAsSvg();
+          }
+        }, 'image/png');
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        downloadAsSvg();
+      }
     };
 
     img.onerror = function () {
       URL.revokeObjectURL(url);
-      showError('Failed to render PNG. Try downloading SVG instead.');
+      downloadAsSvg();
     };
 
     img.src = url;
   }
 
   function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
+    link.href = url;
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    URL.revokeObjectURL(blob);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
   }
 
   function handleSqlFile(file) {
