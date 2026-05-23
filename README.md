@@ -34,12 +34,9 @@ open index.html
 
 No build tools, no server, no dependencies to install.
 
-## 🌐 Deploy to GitHub Pages
+## 🌐 Live Demo
 
-1. Push this repo to GitHub
-2. Go to **Settings → Pages**
-3. Select `main` branch as source
-4. Your tool is live at `https://mohameden19961.github.io/mermaid-er-to-image/`
+The tool is live at: **[https://mohameden19961.github.io/mermaid-er-to-image/](https://mohameden19961.github.io/mermaid-er-to-image/)**
 
 ## 📝 License
 
