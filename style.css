@@ -150,7 +150,7 @@ main {
   position: relative;
   min-height: 300px;
   overflow: auto;
-  background: repeating-conic-gradient(#0a0f1a 0% 25%, transparent 0% 50%) 0 0 / 20px 20px;
+  background: #ffffff;
 }
 
 #mermaid-container {

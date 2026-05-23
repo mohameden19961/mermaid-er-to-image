@@ -93,14 +93,14 @@
   let lastSvg = null;
 
   mermaid.initialize({
-    theme: 'dark',
+    theme: 'default',
     themeVariables: {
-      primaryColor: '#1e293b',
-      primaryTextColor: '#f1f5f9',
-      primaryBorderColor: '#38bdf8',
-      lineColor: '#64748b',
-      secondaryColor: '#334155',
-      tertiaryColor: '#0f172a',
+      primaryColor: '#e0f2fe',
+      primaryTextColor: '#0f172a',
+      primaryBorderColor: '#0284c7',
+      lineColor: '#475569',
+      secondaryColor: '#f8fafc',
+      tertiaryColor: '#ffffff',
       fontFamily: 'system-ui, sans-serif',
     },
     securityLevel: 'loose',
