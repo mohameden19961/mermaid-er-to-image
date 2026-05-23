@@ -187,7 +187,8 @@ function buildMermaidER(parsed, relationships) {
         var key = table2.name + "->" + col2.refTable;
         if (used[key]) continue;
         used[key] = true;
-        mermaid += "    " + col2.refTable + " ||--o{ " + table2.name + ' : "has"\n';
+        var label = generateRelationLabel(col2.refTable, table2.name, col2.name);
+        mermaid += "    " + col2.refTable + " ||--o{ " + table2.name + ' : "' + label + '"\n';
       }
     }
   }
@@ -208,6 +209,54 @@ function buildMermaidER(parsed, relationships) {
   }
 
   return mermaid;
+}
+
+function generateRelationLabel(parentTable, childTable, fkColName) {
+  var role = fkColName.replace(/_(?:id|code|key)$/i, '').toLowerCase();
+  var parent = parentTable.toLowerCase();
+  var child = childTable.toLowerCase();
+
+  // Common role verbs — describes what parent does w.r.t. child
+  var verbMap = {
+    teacher: "teaches",
+    student: "enrols",
+    manager: "manages",
+    owner: "owns",
+    author: "authors",
+    creator: "creates",
+    sender: "sends",
+    receiver: "receives",
+    editor: "edits",
+    reviewer: "reviews",
+    buyer: "buys",
+    seller: "sells",
+    member: "includes",
+    lead: "leads",
+    coordinator: "coordinates",
+    supervisor: "supervises",
+    assistant: "assists",
+    category: "categorises",
+    publisher: "publishes",
+    parent: "contains",
+  };
+
+  if (verbMap[role]) return verbMap[role];
+
+  // If the role is the same as the parent table name, derive from child
+  if (role === parent || role + "s" === parent || role === parent.replace(/s$/, "")) {
+    var parentVerb = {
+      course: "contains",
+      user: "has",
+      room: "houses",
+      quiz: "includes",
+      assignment: "receives",
+      student: "enrols",
+      teacher: "teaches",
+    };
+    if (parentVerb[parent]) return parentVerb[parent];
+  }
+
+  return "has";
 }
 
 function mapJsonType(type) {

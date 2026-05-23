@@ -287,12 +287,59 @@ function generateMermaidER(tables) {
         const key = `${table.name}->${col.refTable}`;
         if (used.has(key)) continue;
         used.add(key);
-        mermaid += `    ${col.refTable} ||--o{ ${table.name} : "has"\n`;
+        const label = generateRelationLabel(col.refTable, table.name, col.name);
+        mermaid += `    ${col.refTable} ||--o{ ${table.name} : "${label}"\n`;
       }
     }
   }
 
   return mermaid;
+}
+
+function generateRelationLabel(parentTable, childTable, fkColName) {
+  var role = fkColName.replace(/_(?:id|code|key)$/i, '').toLowerCase();
+  var parent = parentTable.toLowerCase();
+  var child = childTable.toLowerCase();
+
+  var verbMap = {
+    teacher: "teaches",
+    student: "enrols",
+    manager: "manages",
+    owner: "owns",
+    author: "authors",
+    creator: "creates",
+    sender: "sends",
+    receiver: "receives",
+    editor: "edits",
+    reviewer: "reviews",
+    buyer: "buys",
+    seller: "sells",
+    member: "includes",
+    lead: "leads",
+    coordinator: "coordinates",
+    supervisor: "supervises",
+    assistant: "assists",
+    category: "categorises",
+    publisher: "publishes",
+    parent: "contains",
+  };
+
+  if (verbMap[role]) return verbMap[role];
+
+  if (role === parent || role + "s" === parent || role === parent.replace(/s$/, "")) {
+    var parentVerb = {
+      course: "contains",
+      user: "has",
+      room: "houses",
+      quiz: "includes",
+      assignment: "receives",
+      student: "enrols",
+      teacher: "teaches",
+    };
+    if (parentVerb[parent]) return parentVerb[parent];
+  }
+
+  return "has";
 }
 
 // --- Mermaid code enhancement: auto-detect relationships from naming ---
