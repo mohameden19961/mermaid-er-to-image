@@ -148,8 +148,14 @@
       }
     }
 
+    // Auto-add relationship lines from column naming conventions
+    const enhanced = enhanceMermaidWithRelations(trimmed);
+    if (enhanced !== trimmed) {
+      codeInput.value = enhanced;
+    }
+
     try {
-      const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), trimmed);
+      const { svg } = await mermaid.render('mermaid-svg-' + Date.now(), enhanced);
       emptyState.classList.add('hidden');
       errorState.classList.add('hidden');
       mermaidContainer.innerHTML = svg;

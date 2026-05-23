@@ -202,7 +202,6 @@ function parseAlterTableStatements(sql, tables) {
 // --- Heuristic FK detection by naming convention ---
 
 function inferForeignKeys(tables) {
-  const tableNames = tables.map(t => t.name.toUpperCase());
   const singularMap = {};
   for (const t of tables) {
     singularMap[t.name.toUpperCase()] = t.name;
@@ -213,37 +212,50 @@ function inferForeignKeys(tables) {
       if (col.isForeignKey) continue;
 
       const name = col.name.toUpperCase();
+      const tName = table.name;
 
-      // pattern: xxx_id
-      const idMatch = name.match(/^(.+)_ID$/);
-      if (idMatch) {
-        const ref = idMatch[1];
-        for (const [key, val] of Object.entries(singularMap)) {
-          if (key === ref || key.replace(/s$/, '') === ref || key === ref.replace(/s$/, '')) {
-            col.isForeignKey = true;
-            col.refTable = val;
-            col.refColumn = "id";
-            break;
-          }
-        }
-        if (col.isForeignKey) continue;
+      // pattern: xxx_id (suffix)
+      const suffixMatch = name.match(/^(.+)_ID$/);
+      if (suffixMatch) {
+        const ref = suffixMatch[1];
+        if (tryMatchForeignKey(col, ref, singularMap, "id", tName)) continue;
+      }
+
+      // pattern: idXxx (prefix, e.g. idDepartement, idProgramme)
+      const prefixMatch = name.match(/^ID(.+)/);
+      if (prefixMatch) {
+        const ref = prefixMatch[1];
+        if (tryMatchForeignKey(col, ref, singularMap, "id", tName)) continue;
       }
 
       // pattern: xxx_code
       const codeMatch = name.match(/^(.+)_CODE$/);
       if (codeMatch) {
         const ref = codeMatch[1];
-        for (const [key, val] of Object.entries(singularMap)) {
-          if (key === ref || key.replace(/s$/, '') === ref || key === ref.replace(/s$/, '')) {
-            col.isForeignKey = true;
-            col.refTable = val;
-            col.refColumn = "code";
-            break;
-          }
-        }
+        tryMatchForeignKey(col, ref, singularMap, "code", tName);
       }
     }
   }
+}
+
+function tryMatchForeignKey(col, refName, singularMap, refColumn, currentTableName) {
+  const ref = refName.toUpperCase();
+  for (const [key, val] of Object.entries(singularMap)) {
+    if (key === ref || key.replace(/s$/, '') === ref || key === ref.replace(/s$/, '')) {
+      // Skip self-references that are just PK matching own table name
+      if (currentTableName && currentTableName.toUpperCase() === key && col.isPrimary) {
+        continue;
+      }
+      if (currentTableName && currentTableName.toUpperCase() === key && val === refName) {
+        continue;
+      }
+      col.isForeignKey = true;
+      col.refTable = val;
+      col.refColumn = refColumn;
+      return true;
+    }
+  }
+  return false;
 }
 
 // --- Mermaid generation ---
@@ -283,6 +295,90 @@ function generateMermaidER(tables) {
   return mermaid;
 }
 
+// --- Mermaid code enhancement: auto-detect relationships from naming ---
+
+function enhanceMermaidWithRelations(mermaidCode) {
+  const tables = parseMermaidEntities(mermaidCode);
+  if (tables.length === 0) return mermaidCode;
+
+  // Apply heuristic FK detection
+  inferForeignKeys(tables);
+
+  const existingRelations = new Set();
+  const relRegex = /^(\s*)(\w+)\s*[\|o\{]+\-+[\|o\{]+\s*(\w+)\s*:/gm;
+  let relMatch;
+  while ((relMatch = relRegex.exec(mermaidCode)) !== null) {
+    const from = relMatch[2].toUpperCase();
+    const to = relMatch[3].toUpperCase();
+    existingRelations.add(`${from}->${to}`);
+    existingRelations.add(`${to}->${from}`);
+  }
+
+  const used = new Set();
+  for (const key of existingRelations) used.add(key);
+
+  let extra = "\n";
+  for (const table of tables) {
+    for (const col of table.columns) {
+      if (col.isForeignKey && col.refTable) {
+        const key = `${table.name.toUpperCase()}->${col.refTable.toUpperCase()}`;
+        const revKey = `${col.refTable.toUpperCase()}->${table.name.toUpperCase()}`;
+        if (used.has(key) || used.has(revKey)) continue;
+        used.add(key);
+        used.add(revKey);
+        extra += `    ${col.refTable} ||--o{ ${table.name} : "has"\n`;
+      }
+    }
+  }
+
+  if (extra === "\n") return mermaidCode;
+  return mermaidCode + extra;
+}
+
+function parseMermaidEntities(mermaidCode) {
+  const tables = [];
+  const entityRegex = /^\s*(\w+)\s*\{([^}]+)\}/gm;
+  let match;
+
+  while ((match = entityRegex.exec(mermaidCode)) !== null) {
+    const name = match[1];
+    const body = match[2];
+    const columns = [];
+
+    const lines = body.trim().split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+
+      const parts = trimmed.split(/\s+/);
+      if (parts.length < 2) continue;
+
+      const type = parts[0];
+      const colName = parts[1];
+      const rest = parts.slice(2).join(" ").toUpperCase();
+
+      const isPrimary = rest.includes("PK");
+      const isForeignKey = rest.includes("FK");
+
+      columns.push({
+        name: colName,
+        type,
+        isPrimary,
+        isForeignKey,
+        isUnique: rest.includes("UK"),
+        refTable: null,
+        refColumn: null,
+      });
+    }
+
+    tables.push({ name, columns });
+  }
+
+  return tables;
+}
+
+// --- Exports ---
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { parseSqlToMermaid, parseCreateTables };
+  module.exports = { parseSqlToMermaid, parseCreateTables, enhanceMermaidWithRelations };
 }
