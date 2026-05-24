@@ -140,35 +140,6 @@ main {
   font-size: 0.78rem;
 }
 
-.github-row {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-
-.url-input {
-  flex: 1;
-  background: #0a0f1a;
-  color: #e2e8f0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.4rem 0.75rem;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  font-size: 0.8rem;
-  outline: none;
-  transition: border-color 0.15s;
-}
-
-.url-input:focus {
-  border-color: var(--accent);
-}
-
-.url-input::placeholder {
-  color: #475569;
-}
-
 #code-input {
   flex: 1;
   background: #0a0f1a;

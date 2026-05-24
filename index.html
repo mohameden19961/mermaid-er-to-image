@@ -11,7 +11,7 @@
 <body>
   <header>
     <h1>🗄️ DB → ER Diagram</h1>
-    <p>Import a JSON database schema, load from GitHub, or paste Mermaid code to generate a clean ER diagram.</p>
+    <p>Import a JSON database schema or paste Mermaid code to generate a clean ER diagram.</p>
   </header>
 
   <main>
@@ -25,11 +25,7 @@
           <button id="clear-btn" class="btn btn-sm" title="Clear">🗑️ Clear</button>
         </div>
       </div>
-      <div class="github-row">
-        <input type="text" id="github-url-input" class="url-input" placeholder="https://raw.githubusercontent.com/user/repo/main/database.json" spellcheck="false">
-        <button id="load-github-btn" class="btn btn-primary">⬇️ Load from GitHub</button>
-      </div>
-      <textarea id="code-input" spellcheck="false" placeholder="Paste Mermaid code, JSON schema, or import a file..."></textarea>
+      <textarea id="code-input" spellcheck="false" placeholder="Paste Mermaid code, JSON schema, or import a JSON file..."></textarea>
     </div>
 
     <div class="preview-panel">
@@ -45,7 +41,7 @@
         <div id="empty-state">
           <div class="empty-icon">🗄️</div>
           <p>Your diagram will appear here</p>
-          <p class="hint">Import a JSON file, load from GitHub, or paste Mermaid code</p>
+          <p class="hint">Import a JSON file or paste Mermaid code</p>
         </div>
         <div id="error-state" class="hidden">
           <div class="error-icon">⚠️</div>

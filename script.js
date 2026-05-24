@@ -10,8 +10,6 @@
   const clearBtn = document.getElementById('clear-btn');
   const importJsonBtn = document.getElementById('import-json-btn');
   const jsonFileInput = document.getElementById('json-file-input');
-  const githubUrlInput = document.getElementById('github-url-input');
-  const loadGithubBtn = document.getElementById('load-github-btn');
 
   const EXAMPLE_CODE = `erDiagram
     LANGUAGE {
@@ -288,33 +286,6 @@
       handleJsonFile(this.files[0]);
     }
     this.value = '';
-  });
-
-  async function fetchFromGitHub() {
-    const url = githubUrlInput.value.trim();
-    if (!url) {
-      showError('Please enter a GitHub raw URL.');
-      return;
-    }
-    try {
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error('HTTP ' + response.status + ': ' + response.statusText);
-      }
-      const text = await response.text();
-      const json = JSON.parse(text);
-      const mermaidCode = parseJsonSchemaToMermaid(json);
-      codeInput.value = mermaidCode;
-      renderDiagram(mermaidCode);
-    } catch (err) {
-      showError('GitHub Load Error: ' + err.message);
-    }
-  }
-
-  loadGithubBtn.addEventListener('click', fetchFromGitHub);
-
-  githubUrlInput.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') fetchFromGitHub();
   });
 
   // Drag and drop support
